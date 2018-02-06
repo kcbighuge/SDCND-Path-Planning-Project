@@ -254,6 +254,7 @@ int main() {
               next_y_vals.push_back(previous_path_y[i]);
             }
 
+            /*
             // set current position
             if (path_size == 0) {
               pos_x = car_x;
@@ -267,17 +268,36 @@ int main() {
               double pos_y2 = previous_path_y[path_size-2];
               angle = atan2(pos_y-pos_y2, pos_x-pos_x2);
             }
+            */
 
             double dist_inc = 0.5;
             for (int i=0; i < 50-path_size; i++) {
-              //next_x_vals.push_back(car_x + (dist_inc) * cos(deg2rad(car_yaw)));
-              //next_y_vals.push_back(car_y + (dist_inc) * sin(deg2rad(car_yaw)));
+              // set path for middle of left-most lane
+              double next_s = car_s + (i+1)*dist_inc;
+              double next_d;
+              
+              if (car_d != 2) {
+                next_d = 2 + (car_d-2) * (49-i)/50;
+              }
+              else {
+                next_d = 2;
+              }
+
+              vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+              next_x_vals.push_back(xy[0]);
+              next_y_vals.push_back(xy[1]);
+
+              /* drive straight or in circles
+              next_x_vals.push_back(car_x + (dist_inc) * cos(deg2rad(car_yaw)));
+              next_y_vals.push_back(car_y + (dist_inc) * sin(deg2rad(car_yaw)));
+
 
               next_x_vals.push_back(pos_x + (dist_inc) * cos(angle + (i+1) * (pi()/100)));
               next_y_vals.push_back(pos_y + (dist_inc) * sin(angle + (i+1) * (pi()/10)));
 
               pos_x += dist_inc * cos(angle + (i+1) * (pi()/100));
               pos_y += dist_inc * sin(angle + (i+1) * (pi()/100));
+              */
             }
 
           	msgJson["next_x"] = next_x_vals;
