@@ -205,7 +205,7 @@ int main() {
   int lane = 1;
 
   // reference velocity to target
-  double ref_vel = 49.5;
+  double ref_vel = 0.0;
 
   h.onMessage([&ref_vel,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -256,18 +256,18 @@ int main() {
             int path_size = previous_path_x.size();
 
             // sensor fusion
-            /*if (path_size > 0) {
+            if (path_size > 0) {
               car_s = end_path_s;
-            }*/
+            }
 
             bool too_close = false;  // monitor car collisions
             //lane = ((int)car_d % 4);  // set the lane
 
-            // find a reference velocity
+            // find a reference velocity ref_vel
             for (int i=0; i < sensor_fusion.size(); i++) {
 
               // car is in our lane
-              float d = sensor_fusion[i][3];
+              float d = sensor_fusion[i][6];
               if ((2 + 4*lane -2) < d && d < (2 + 4*lane +2)) {
                 double vx = sensor_fusion[i][3];
                 double vy = sensor_fusion[i][4];
@@ -278,11 +278,18 @@ int main() {
 
                 // check s values
                 if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)) {
-                  // lower speed, set flag to change lanes
-                  ref_vel = 29.5;
+                  // lower speed or set flag to change lanes
+                  //ref_vel = 29.5;
+                  too_close = true;
                 }
               }
+            }  // end of finding reference velocity
 
+            // adjust reference velocity
+            if(too_close) {
+              ref_vel -= .224;
+            } else if(ref_vel < 49.5) {
+              ref_vel += .224;
             }
 
             // use previous path points
@@ -304,10 +311,9 @@ int main() {
               double pos_x2 = previous_path_x[path_size-2];
               double pos_y2 = previous_path_y[path_size-2];
               angle = atan2(pos_y-pos_y2, pos_x-pos_x2);
-            }
-            */
+            }*/
 
-            double dist_inc = 0.5;
+            //double dist_inc = 0.5;  // set static path point increments
             for (int i=0; i < 50-path_size; i++) {
 
               double next_s = car_s + (i+1) * (.02*ref_vel/2.24);
@@ -335,8 +341,7 @@ int main() {
               next_y_vals.push_back(pos_y + (dist_inc) * sin(angle + (i+1) * (pi()/10)));
 
               pos_x += dist_inc * cos(angle + (i+1) * (pi()/100));
-              pos_y += dist_inc * sin(angle + (i+1) * (pi()/100));
-              */
+              pos_y += dist_inc * sin(angle + (i+1) * (pi()/100));*/
             }
 
           	msgJson["next_x"] = next_x_vals;
