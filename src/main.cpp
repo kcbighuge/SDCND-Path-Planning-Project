@@ -8,6 +8,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "spline.h"
 
 using namespace std;
 
@@ -200,7 +201,13 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  // starting lane
+  int lane = 1;
+
+  // reference velocity to target
+  double ref_vel = 49.5;
+
+  h.onMessage([&ref_vel,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -248,6 +255,36 @@ int main() {
             double angle;
             int path_size = previous_path_x.size();
 
+            // sensor fusion
+            /*if (path_size > 0) {
+              car_s = end_path_s;
+            }*/
+
+            bool too_close = false;  // monitor car collisions
+            //lane = ((int)car_d % 4);  // set the lane
+
+            // find a reference velocity
+            for (int i=0; i < sensor_fusion.size(); i++) {
+
+              // car is in our lane
+              float d = sensor_fusion[i][3];
+              if ((2 + 4*lane -2) < d && d < (2 + 4*lane +2)) {
+                double vx = sensor_fusion[i][3];
+                double vy = sensor_fusion[i][4];
+                double check_speed = sqrt(vx*vx + vy*vy);
+                double check_car_s = sensor_fusion[i][5];
+
+                check_car_s += ((double)path_size * .02 * check_speed);  // projection of s value 
+
+                // check s values
+                if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)) {
+                  // lower speed, set flag to change lanes
+                  ref_vel = 29.5;
+                }
+              }
+
+            }
+
             // use previous path points
             for (int i=0; i < path_size; i++) {
               next_x_vals.push_back(previous_path_x[i]);
@@ -272,16 +309,18 @@ int main() {
 
             double dist_inc = 0.5;
             for (int i=0; i < 50-path_size; i++) {
-              // set path for middle of left-most lane
-              double next_s = car_s + (i+1)*dist_inc;
-              double next_d;
-              
+
+              double next_s = car_s + (i+1) * (.02*ref_vel/2.24);
+              double next_d = 6;
+
+              // move to leftmost lane
+              /*
               if (car_d != 2) {
                 next_d = 2 + (car_d-2) * (49-i)/50;
               }
               else {
                 next_d = 2;
-              }
+              }*/
 
               vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
               next_x_vals.push_back(xy[0]);
