@@ -75,7 +75,19 @@ the path has processed since last time.
 
 ## Tips
 
-A really helpful resource for doing this project and creating smooth trajectories was using http://kluge.in-chemnitz.de/opensource/spline/, the spline function is in a single hearder file is really easy to use.
+A helpful resource for creating smooth trajectories can be found here: http://kluge.in-chemnitz.de/opensource/spline/ — the spline function is in a single header file which makes it easy to use.
+
+## Model Documentation
+
+Here are the steps used to generate paths:
+
+1. Create a spline for the (x,y) points in the path to follow.
+  - The spline is built using points that are 30m, 60m, and 90m ahead of our car, as well as 2 points from our previous trajectory.
+2. Find a reference velocity for the car to follow.
+  - Use 49.5 MPH as the target velocity and increase or decrease speed depending on the presence of other cars ahead of us in our lane. 
+3. Find points in the spline that allow our car to travel at the desired speed.
+  - Use a target 30m ahead to estimate the appropriate (x,y) points.
+4. Add the new (x,y) points to the previous path points to create the new path.
 
 ---
 
@@ -99,16 +111,5 @@ A really helpful resource for doing this project and creating smooth trajectorie
     cd uWebSockets
     git checkout e94b6e1
     ```
-
-## Reflection on How to Generate Paths
-
-Here are the steps used to implement our solution:
-1. Find closest waypoint from map
-2. Determine if faster path exists
-3. Identify surrounding traffic
-4. Identify optimal path based on current traffic
-5. Add new path points to previous path
-6. ...
-
 
 ---

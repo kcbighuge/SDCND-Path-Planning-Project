@@ -204,7 +204,7 @@ int main() {
   // starting lane
   int lane = 1;
 
-  // reference velocity to target
+  // starting reference velocity
   double ref_vel = 0.0;
 
   h.onMessage([&ref_vel,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -249,12 +249,12 @@ int main() {
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
-          	// TODO IN PROGRESS: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+          	// DONE: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
             // create list of (x,y) waypoints evenly spaced at 30m
             vector<double> ptsx;
             vector<double> ptsy;
 
-            int path_size = previous_path_x.size();  // keep track of prev path
+            int path_size = previous_path_x.size();  // keep track of prev path length
 
             // reference x,y,yaw states: reference where car is OR prev path end
             double ref_x = car_x;
@@ -309,19 +309,17 @@ int main() {
               double shift_y = ptsy[i] - ref_y;
 
               ptsx[i] = (shift_x * cos(0-ref_yaw) - shift_y * sin(0-ref_yaw));
-              ptsy[i] = (shift_y * sin(0-ref_yaw) + shift_y * cos(0-ref_yaw));
+              ptsy[i] = (shift_x * sin(0-ref_yaw) + shift_y * cos(0-ref_yaw));
             }
 
-            // sensor fusion
-            /*
+            // set car s value to previous path end point
             if (path_size > 0) {
               car_s = end_path_s;
-            }*/
+            }
 
             bool too_close = false;  // monitor car collisions
-            //lane = ((int)car_d % 4);  // set the lane
 
-            // find a reference velocity ref_vel
+            // use sensor fusion to find a reference velocity ref_vel
             for (int i=0; i < sensor_fusion.size(); i++) {
 
               // car is in our lane
@@ -353,32 +351,48 @@ int main() {
             // create a spline
             tk::spline s;
 
+            s.set_points(ptsx, ptsy);  // set the spline
+
             // use previous path points
-            /*
             for (int i=0; i < path_size; i++) {
               next_x_vals.push_back(previous_path_x[i]);
               next_y_vals.push_back(previous_path_y[i]);
-            }*/
+            }
 
-            s.set_points(ptsx, ptsy);  // set the spline
+            // break up spline points to travel at desired ref vel
+            double target_x = 30.0;  // choose distance to horizon
+            double target_y = s(target_x);
+            double target_dist = sqrt((target_x*target_x) + (target_y*target_y));
+            
 
-            for (int i=0; i < 50; i++) {
+            double x_add_on = 0;  // start at car origin
 
-              double next_s = car_s + (i+1) * (.02*ref_vel/2.24);
+            for (int i=0; i < 50-path_size; i++) {
+              double N = target_dist / (.02 * ref_vel/2.24);
+              double x_pt = x_add_on + target_x/N;
+              double y_pt = s(x_pt);
+
+              x_add_on = x_pt;
+
+              double x_ref = x_pt;
+              double y_ref = y_pt;
+
+              // rotate back to global coords
+              x_pt = x_ref*cos(ref_yaw) - y_ref*sin(ref_yaw);
+              y_pt = x_ref*sin(ref_yaw) + y_ref*cos(ref_yaw);
+
+              x_pt += ref_x;
+              y_pt += ref_y;
+
+              next_x_vals.push_back(x_pt);
+              next_y_vals.push_back(y_pt);
+
+              // stay in middle lane
+              /*double next_s = car_s + (i+1) * (.02*ref_vel/2.24);
               double next_d = 6;
-
-              // move to leftmost lane
-              /*
-              if (car_d != 2) {
-                next_d = 2 + (car_d-2) * (49-i)/50;
-              }
-              else {
-                next_d = 2;
-              }*/
-
               vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
               next_x_vals.push_back(xy[0]);
-              next_y_vals.push_back(xy[1]);
+              next_y_vals.push_back(xy[1]);*/
 
             }
 
