@@ -250,15 +250,73 @@ int main() {
           	vector<double> next_y_vals;
 
           	// TODO IN PROGRESS: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-            double pos_x;
-            double pos_y;
-            double angle;
-            int path_size = previous_path_x.size();
+            // create list of (x,y) waypoints evenly spaced at 30m
+            vector<double> ptsx;
+            vector<double> ptsy;
+
+            int path_size = previous_path_x.size();  // keep track of prev path
+
+            // reference x,y,yaw states: reference where car is OR prev path end
+            double ref_x = car_x;
+            double ref_y = car_y;
+            double ref_yaw = deg2rad(car_yaw);
+
+            // if prev path almost empty, use car as starting reference
+            if (path_size < 2) {
+              double prev_car_x = car_x - cos(car_yaw);
+              double prev_car_y = car_y - sin(car_yaw);
+
+              ptsx.push_back(prev_car_x);
+              ptsx.push_back(car_x);
+
+              ptsy.push_back(prev_car_y);
+              ptsy.push_back(car_y);
+            } 
+
+            else {
+              // redefine ref state as prev path end
+              ref_x = previous_path_x[path_size-1];
+              ref_y = previous_path_y[path_size-1];
+
+              double ref_x_prev = previous_path_x[path_size-2];
+              double ref_y_prev = previous_path_y[path_size-2];
+              ref_yaw = atan2(ref_y-ref_y_prev, ref_x-ref_x_prev);
+
+              ptsx.push_back(ref_x_prev);
+              ptsx.push_back(ref_x);
+
+              ptsy.push_back(ref_y_prev);
+              ptsy.push_back(ref_y);
+            }
+
+            // in frenet coords, add points spaced evenly 30m apart
+            vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+            ptsx.push_back(next_wp0[0]);
+            ptsx.push_back(next_wp1[0]);
+            ptsx.push_back(next_wp2[0]);
+
+            ptsy.push_back(next_wp0[1]);
+            ptsy.push_back(next_wp1[1]);
+            ptsy.push_back(next_wp2[1]);
+
+            // transform global coords to local car coords
+            for (int i=0; i < ptsx.size(); i++) {
+              // shift car ref angle to 0 deg
+              double shift_x = ptsx[i] - ref_x;
+              double shift_y = ptsy[i] - ref_y;
+
+              ptsx[i] = (shift_x * cos(0-ref_yaw) - shift_y * sin(0-ref_yaw));
+              ptsy[i] = (shift_y * sin(0-ref_yaw) + shift_y * cos(0-ref_yaw));
+            }
 
             // sensor fusion
+            /*
             if (path_size > 0) {
               car_s = end_path_s;
-            }
+            }*/
 
             bool too_close = false;  // monitor car collisions
             //lane = ((int)car_d % 4);  // set the lane
@@ -292,29 +350,19 @@ int main() {
               ref_vel += .224;
             }
 
+            // create a spline
+            tk::spline s;
+
             // use previous path points
+            /*
             for (int i=0; i < path_size; i++) {
               next_x_vals.push_back(previous_path_x[i]);
               next_y_vals.push_back(previous_path_y[i]);
-            }
-
-            /*
-            // set current position
-            if (path_size == 0) {
-              pos_x = car_x;
-              pos_y = car_y;
-              angle = deg2rad(car_yaw);
-            } else {
-              pos_x = previous_path_x[path_size-1];
-              pos_y = previous_path_y[path_size-1];
-
-              double pos_x2 = previous_path_x[path_size-2];
-              double pos_y2 = previous_path_y[path_size-2];
-              angle = atan2(pos_y-pos_y2, pos_x-pos_x2);
             }*/
 
-            //double dist_inc = 0.5;  // set static path point increments
-            for (int i=0; i < 50-path_size; i++) {
+            s.set_points(ptsx, ptsy);  // set the spline
+
+            for (int i=0; i < 50; i++) {
 
               double next_s = car_s + (i+1) * (.02*ref_vel/2.24);
               double next_d = 6;
@@ -332,16 +380,6 @@ int main() {
               next_x_vals.push_back(xy[0]);
               next_y_vals.push_back(xy[1]);
 
-              /* drive straight or in circles
-              next_x_vals.push_back(car_x + (dist_inc) * cos(deg2rad(car_yaw)));
-              next_y_vals.push_back(car_y + (dist_inc) * sin(deg2rad(car_yaw)));
-
-
-              next_x_vals.push_back(pos_x + (dist_inc) * cos(angle + (i+1) * (pi()/100)));
-              next_y_vals.push_back(pos_y + (dist_inc) * sin(angle + (i+1) * (pi()/10)));
-
-              pos_x += dist_inc * cos(angle + (i+1) * (pi()/100));
-              pos_y += dist_inc * sin(angle + (i+1) * (pi()/100));*/
             }
 
           	msgJson["next_x"] = next_x_vals;
