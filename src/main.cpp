@@ -290,8 +290,8 @@ int main() {
             }
 
             // in frenet coords, add points spaced evenly 30m apart
-            vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp0 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp1 = getXY(car_s+75, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
             vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
             ptsx.push_back(next_wp0[0]);
@@ -318,19 +318,22 @@ int main() {
             }
 
             bool too_close = false;  // monitor car collisions
+            bool left_clear = true;  // lane to our left
+            bool right_clear = true;  // lane to our left
 
             // use sensor fusion to find a reference velocity ref_vel
             for (int i=0; i < sensor_fusion.size(); i++) {
+              
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double check_speed = sqrt(vx*vx + vy*vy);
+              double check_car_s = sensor_fusion[i][5];
 
-              // car is in our lane
+              check_car_s += ((double)path_size * .02 * check_speed);  // projection of s value 
+
+              // check if a car is in our lane
               float d = sensor_fusion[i][6];
               if ((2 + 4*lane -2) < d && d < (2 + 4*lane +2)) {
-                double vx = sensor_fusion[i][3];
-                double vy = sensor_fusion[i][4];
-                double check_speed = sqrt(vx*vx + vy*vy);
-                double check_car_s = sensor_fusion[i][5];
-
-                check_car_s += ((double)path_size * .02 * check_speed);  // projection of s value 
 
                 // check s values
                 if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)) {
@@ -339,12 +342,38 @@ int main() {
                   too_close = true;
                 }
               }
+
+              // check if a car is in lane to our left
+              else if (d < 4*lane) {
+                check_car_s += ((double)path_size * .02 * check_speed);  // projection of s value 
+                if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)) {
+                  left_clear = false;
+                }
+              }
+
+              // check if a car is in lane to our right
+              else if (d > (4 + 4*lane)) {
+                check_car_s += ((double)path_size * .02 * check_speed);  // projection of s value 
+                if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)) {
+                  right_clear = false;
+                }
+              }
+
             }  // end of finding reference velocity
 
             // adjust reference velocity
-            if(too_close) {
-              ref_vel -= .224;
-            } else if(ref_vel < 49.5) {
+            if (too_close) {
+              if (left_clear && lane > 0) {
+                lane -= 1;
+              }
+              else if (right_clear && lane < 2) {
+                lane += 1;
+              }
+              else {
+                ref_vel -= .224;
+              }
+            } 
+            else if (ref_vel < 49.5) {
               ref_vel += .224;
             }
 

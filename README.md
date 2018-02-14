@@ -1,12 +1,12 @@
 # CarND-Path-Planning-Project
-Self-Driving Car Engineer Nanodegree Program 
+Self-Driving Car Engineer Nanodegree Program  
 (see original project files [here](https://github.com/udacity/CarND-Path-Planning-Project) and a project walkthrough video [here](https://www.youtube.com/watch?v=7sI3VHFPP0w))
    
-### Simulator.
-You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
+### Simulator
+You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab](https://github.com/udacity/self-driving-car-sim/releases).
 
 ### Goals
-This project's' goal is to safely navigate around a virtual highway with other traffic that is driving +-10 MPH of the 50 MPH speed limit. Some key considerations: 
+This project's' goal is to safely navigate around a virtual highway with other traffic that is driving ±10 MPH of the 50 MPH speed limit. Some key considerations: 
 - We are provided the car's localization and sensor fusion data. There is also a sparse map list of waypoints around the highway. 
 - The car should try to go as close as possible to the 50 MPH speed limit, which means passing slower traffic when possible, note that other cars will try to change lanes too. 
 - The car should avoid hitting other cars at all cost as well as driving inside of the marked road lanes at all times, unless going from one lane to another. 
@@ -82,11 +82,11 @@ A helpful resource for creating smooth trajectories can be found here: http://kl
 Here are the steps used to generate paths:
 
 1. Create a spline for the (x,y) points in the path to follow.
-  - The spline is built using points that are 30m, 60m, and 90m ahead of our car, as well as 2 points from our previous trajectory.
+    - The spline is built using points that are 30m, 60m, and 90m ahead of our car, as well as 2 points from our previous trajectory.
 2. Find a reference velocity for the car to follow.
-  - Use 49.5 MPH as the target velocity and increase or decrease speed depending on the presence of other cars ahead of us in our lane. 
+    - Use 49.5 MPH as the target velocity and increase or decrease speed depending on the presence of other cars ahead of us in our lane. 
 3. Find points in the spline that allow our car to travel at the desired speed.
-  - Use a target 30m ahead to estimate the appropriate (x,y) points.
+    - Use a target 30m ahead to estimate the appropriate (x,y) points.
 4. Add the new (x,y) points to the previous path points to create the new path.
 
 ---
