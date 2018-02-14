@@ -203,11 +203,13 @@ int main() {
 
   // starting lane
   int lane = 1;
+  const int LANE_WIDTH = 4;
+  bool prep_lane_chg = false;  // prepare lane change if car in our lane
 
   // starting reference velocity
   double ref_vel = 0.0;
 
-  h.onMessage([&ref_vel,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&ref_vel,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane,&prep_lane_chg](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -289,9 +291,9 @@ int main() {
               ptsy.push_back(ref_y);
             }
 
-            // in frenet coords, add points spaced evenly 30m apart
-            vector<double> next_wp0 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            vector<double> next_wp1 = getXY(car_s+75, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            // in frenet coords, add points spaced evenly apart
+            vector<double> next_wp0 = getXY(car_s+50, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp1 = getXY(car_s+70, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
             vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
             ptsx.push_back(next_wp0[0]);
@@ -318,8 +320,10 @@ int main() {
             }
 
             bool too_close = false;  // monitor car collisions
+            double too_close_speed = car_speed; // track speed of any cars in our lane
             bool left_clear = true;  // lane to our left
             bool right_clear = true;  // lane to our left
+            const float CHECK_DIST = 30.0;  // set a safe gap dist to other cars
 
             // use sensor fusion to find a reference velocity ref_vel
             for (int i=0; i < sensor_fusion.size(); i++) {
@@ -333,29 +337,36 @@ int main() {
 
               // check if a car is in our lane
               float d = sensor_fusion[i][6];
-              if ((2 + 4*lane -2) < d && d < (2 + 4*lane +2)) {
+              if ((LANE_WIDTH*lane) < d && d < (LANE_WIDTH + LANE_WIDTH*lane)) {
 
                 // check s values
-                if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)) {
+                if ((check_car_s > car_s) && ((check_car_s-car_s) < CHECK_DIST)) {
                   // lower speed or set flag to change lanes
                   //ref_vel = 29.5;
                   too_close = true;
+                  too_close_speed = check_speed;
                 }
               }
 
               // check if a car is in lane to our left
-              else if (d < 4*lane) {
+              else if (d < LANE_WIDTH*lane) {
                 check_car_s += ((double)path_size * .02 * check_speed);  // projection of s value 
-                if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)) {
-                  left_clear = false;
+                if ((check_car_s >= car_s) && ((check_car_s-car_s) < CHECK_DIST) && check_speed <= car_speed) {
+                  left_clear = false;  // left lane blocked by car ahead of us
+                }
+                if ((check_car_s <= car_s) && ((car_s-check_car_s) < CHECK_DIST) && check_speed >= car_speed) {
+                  left_clear = false;  // left lane blocked by car behind us
                 }
               }
 
               // check if a car is in lane to our right
-              else if (d > (4 + 4*lane)) {
+              else if (d > (LANE_WIDTH + LANE_WIDTH*lane)) {
                 check_car_s += ((double)path_size * .02 * check_speed);  // projection of s value 
-                if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)) {
-                  right_clear = false;
+                if ((check_car_s >= car_s) && ((check_car_s-car_s) < CHECK_DIST) && check_speed <= car_speed) {
+                  right_clear = false;  // right lane blocked by car ahead of us
+                }
+                if ((check_car_s <= car_s) && ((car_s-check_car_s) < CHECK_DIST) && check_speed >= car_speed) {
+                  left_clear = false;  // right lane blocked by car behind us
                 }
               }
 
@@ -363,18 +374,29 @@ int main() {
 
             // adjust reference velocity
             if (too_close) {
-              if (left_clear && lane > 0) {
+              if (left_clear && lane > 0 && prep_lane_chg) {
                 lane -= 1;
+                prep_lane_chg = false;
               }
-              else if (right_clear && lane < 2) {
+              else if (right_clear && lane < 2 && prep_lane_chg) {
                 lane += 1;
+                prep_lane_chg = false;
               }
               else {
-                ref_vel -= .224;
+                ref_vel -= .1;  // start out with .224 and adjust
+
+                // don't slow down below speed of car ahead of us
+                if (ref_vel < too_close_speed) {
+                  ref_vel = too_close_speed;
+                }
               }
-            } 
-            else if (ref_vel < 49.5) {
-              ref_vel += .224;
+              // prepare for lane change
+              if (prep_lane_chg != true) {
+                prep_lane_chg = true;
+              }
+            }
+            else if (ref_vel < 49.0) {  // stay below 50 MPH speed limit
+              ref_vel += .224;  // start out with .224 and adjust
             }
 
             // create a spline
