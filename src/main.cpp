@@ -291,8 +291,8 @@ int main() {
             }
 
             // in frenet coords, add points spaced evenly apart
-            vector<double> next_wp0 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            vector<double> next_wp1 = getXY(car_s+75, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp0 = getXY(car_s+50, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp1 = getXY(car_s+70, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
             vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
             ptsx.push_back(next_wp0[0]);
@@ -322,7 +322,6 @@ int main() {
             double too_close_speed = car_speed; // track speed of any cars in our lane
             bool left_clear = true;  // lane to our left
             bool right_clear = true;  // lane to our left
-            const double CHECK_DIST = 30.0;  // set a safe gap dist to other cars
             const float LANE_WIDTH = 4;
 
             // use sensor fusion to find a reference velocity ref_vel
@@ -340,7 +339,7 @@ int main() {
               if ((LANE_WIDTH*lane) < d && d < (LANE_WIDTH + LANE_WIDTH*lane)) {
 
                 // check s values
-                if ((check_car_s > car_s) && ((check_car_s-car_s) < CHECK_DIST)) {
+                if ((check_car_s > car_s) && ((check_car_s-car_s) < 30)) {
                   // lower speed or set flag to change lanes
                   //ref_vel = 29.5;
                   too_close = true;
@@ -351,22 +350,22 @@ int main() {
               // check if a car is in lane to our left
               else if (d <= LANE_WIDTH*lane) {
                 check_car_s += ((double)path_size * .02 * check_speed);  // projection of s value 
-                if ((check_car_s >= car_s) && ((check_car_s-car_s) < CHECK_DIST) && check_speed <= car_speed) {
-                  left_clear = false;  // left lane blocked by car ahead of us
+                if ((check_car_s >= car_s) && ((check_car_s-car_s) < 30) && check_speed <= car_speed) {
+                  left_clear = false;  // left lane blocked AHEAD
                 }
-                if ((check_car_s <= car_s) && ((car_s-check_car_s) < CHECK_DIST) && check_speed >= car_speed) {
-                  left_clear = false;  // left lane blocked by car behind us
+                if ((check_car_s <= car_s) && ((car_s-check_car_s) < 15) && check_speed >= car_speed) {
+                  left_clear = false;  // left lane blocked BEHIND
                 }
               }
 
               // check if a car is in lane to our right
               else if (d >= (LANE_WIDTH + LANE_WIDTH*lane)) {
                 check_car_s += ((double)path_size * .02 * check_speed);  // projection of s value 
-                if ((check_car_s >= car_s) && ((check_car_s-car_s) < CHECK_DIST) && check_speed <= car_speed) {
-                  right_clear = false;  // right lane blocked by car ahead of us
+                if ((check_car_s >= car_s) && ((check_car_s-car_s) < 30) && check_speed <= car_speed) {
+                  right_clear = false;  // right lane blocked AHEAD
                 }
-                if ((check_car_s <= car_s) && ((car_s-check_car_s) < CHECK_DIST) && check_speed >= car_speed) {
-                  right_clear = false;  // right lane blocked by car behind us
+                if ((check_car_s <= car_s) && ((car_s-check_car_s) < 15) && check_speed >= car_speed) {
+                  right_clear = false;  // right lane blocked BEHIND
                 }
               }
 
@@ -383,11 +382,11 @@ int main() {
                 prep_lane_chg = false;
               }
               else {
-                ref_vel -= .224;  // start out with .224 and adjust
                 // try not to slow down below speed of car ahead of us
-                if (ref_vel < too_close_speed) {
-                  ref_vel += .124;
+                if (ref_vel-too_close_speed <= .224) {
+                  ref_vel = too_close_speed;
                 }
+                ref_vel -= .224;  // start out with .224 and adjust
               }
               // prepare for lane change
               if (prep_lane_chg != true) {
@@ -410,7 +409,7 @@ int main() {
             }
 
             // break up spline points to travel at desired ref vel
-            double target_x = 30.0;  // choose distance to horizon
+            double target_x = 50.0;  // choose distance to horizon
             double target_y = s(target_x);
             double target_dist = sqrt((target_x*target_x) + (target_y*target_y));
             

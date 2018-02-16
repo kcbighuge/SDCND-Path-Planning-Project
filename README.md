@@ -81,13 +81,26 @@ A helpful resource for creating smooth trajectories can be found here: http://kl
 
 Here are the steps used to generate paths:
 
-1. Create a spline for the (x,y) points in the path to follow.
-    - The spline is built using points that are 30m, 60m, and 90m ahead of our car, as well as 2 points from our previous trajectory.
-2. Find a reference velocity for the car to follow.
-    - Use 49.5 MPH as the target velocity and increase or decrease speed depending on the presence of other cars ahead of us in our lane. 
-3. Find points in the spline that allow our car to travel at the desired speed.
-    - Use a target 30m ahead to estimate the appropriate (x,y) points.
-4. Add the new (x,y) points to the previous path points to create the new path.
+### Trajectory generation
+The ego vehicle trajectory is based on 50 `(x,y)` points from a spline that outline a path to be followed. 
+  - The spline is built using points that are 50m, 70m, & 90m ahead of our us, as well as 2 points from our previous path 
+  - With each iteration of path generation, we also use points from the previous path that was generated to help smooth the driving. 
+  - To enable our vehicle to travel at the desired speed, we find points spaced apart such that traversing them every .02 seconds will keep us under the 50 MPH speed limit. 
+  - In addition to speed, other considerations for choosing a path include not exceeding the specified max acceleration or jerk and not colliding with neighboring vehicles. 
+
+### Speed, maximum acceleration, & jerk avoidance
+  - To determine whether it's safe to accelerate and still stay under the speed limit, we specify a "reference velocity" each iteration and use 49 MPH as an upper limit. 
+  - To avoid accelerating above our specified 10 m/s^2 limit or causing jerk above 50 m/s^3, we will only increase or decrease our reference velocity by a maximum of .224 MPH per iteration. 
+
+### Collision avoidance
+  - Using sensor fusion information of neighboring vehicles, we can estimate if there is a vehicle ahead of us in our lane. 
+  - The presence of a vehicle in our lane is tracked using a `too_close` variable that will toggle off & on. This flag will trigger a decrease in our reference velocity so that we slow down before causing a collision, and it will also trigger a boolean `prep_lane_chg` variable that will prepare our vehicle for making a lane change when it's safe. 
+
+### Lane change decisions
+  - While we are monitoring whether a vehicle is getting too close, we are also monitoring whether there are any vehicles in adjacent lanes that are either 30m ahead of us or 15m behind us. 
+  - We then use 2 boolean variables `right_clear` & `left_clear` to keep track of such vehicles and determine the safety of making a lane change. 
+  - Whenever we detect a vehicle as being too close and prepare our vehicle to change lanes, we only generate a trajectory for a lane change if the adjacent lane is clear. 
+
 
 ---
 
